@@ -16,6 +16,8 @@ class AlgoEvent:
         self.bbstd = 2
         self.arr_close_dict = {} # instrument to the corresponding arr_close
         self.allocationratio_per_trade = 0.3
+        self.risk_limit_portfolio = 0.2
+        self.cooldown = 15
         self.openOrder = {}
         self.netOrder = {}
 
@@ -37,6 +39,7 @@ class AlgoEvent:
                 self.arr_close_dict[instrument] = numpy.array([])
                 self.arr_high_dict[instrument] = numpy.array([])
                 self.arr_low_dict[instrument] = numpy.array([])
+
         
         # check if it is decision time
         if bd[self.myinstrument]['timestamp'] >= self.lasttradetime + timedelta(hours=24):
@@ -118,7 +121,6 @@ class AlgoEvent:
         if lastprice >= upper_bband:
             # caclulate the rsi
             rsi = talib.RSI(arr_close, timeperiod = self.rsi_len)
-            atr = talib.ATR(arr_close, timeperiod = )
             self.evt.consoleLog(f"rsi: {rsi[-1]}")
             # check for rsi
             if rsi[-1] > 70:
