@@ -37,8 +37,7 @@ class AlgoEvent:
             for instrument in bd:
                 #self.evt.consoleLog(f"stock dict: {bd[instrument]}")
                 self.arr_close_dict[instrument] = numpy.array([])
-                self.arr_high_dict[instrument] = numpy.array([])
-                self.arr_low_dict[instrument] = numpy.array([])
+       
 
         
         # check if it is decision time
@@ -55,14 +54,11 @@ class AlgoEvent:
                 
                 
                 self.arr_close_dict[instrument] = numpy.append(self.arr_close_dict[instrument], lastprice)
-                self.arr_high_dict[instrument] = numpy.append(self.arr_high_dict[instrument], highprice)
-                self.arr_low_dict[instrument] = numpy.append(self.arr_low_dict[instrument], lowprice)
+   
                 
                 # keep the most recent observations for arr_close (record of close prices)
                 self.arr_close_dict[instrument] = self.arr_close_dict[instrument][-self.ma_len::]
-                self.arr_high_dict[instrument] = self.arr_high_dict[instrument][-self.ma_len::]
-                self.arr_low_dict[instrument] = self.arr_low_dict[instrument][-self.ma_len::]
-            
+              
             # check if we have waited the initial peroid
             if bd[self.myinstrument]['timestamp'] <= self.start_time + timedelta(days = self.wait_time):
                 return
