@@ -13,7 +13,11 @@ class AlgoEvent:
         self.wait_time = self.ma_len # in days
         self.arr_bbw = numpy.array([])
         self.bbw_len = 1*30 # length of bbw, only set to 30 as too high will yield no sequeeze, may change
+        self.bbstd = 2
         self.arr_close_dict = {} # key to the corresponding arr_close
+        self.allocationratio_per_trade = 0.3
+        self.openOrder = {}
+        self.netOrder = {}
 
 
     def start(self, mEvt):
@@ -65,7 +69,8 @@ class AlgoEvent:
         pass
 
     def on_openPositionfeed(self, op, oo, uo):
-        pass
+        self.openOrder = oo
+        self.netOrder = op
     
     
     def find_sma(self, data, window_size):
@@ -80,8 +85,8 @@ class AlgoEvent:
         arr_close = self.arr_close_dict[key]
         sma = self.find_sma(arr_close, self.ma_len)
         sd = numpy.std(arr_close)
-        upper_bband = sma + 2*sd
-        lower_bband = sma - 2*sd
+        upper_bband = sma + self.bbstd * sd
+        lower_bband = sma - self.bbstd * sd
         bbw = (upper_bband-lower_bband)/sma
         lastprice = arr_close[-1]
         
@@ -102,20 +107,20 @@ class AlgoEvent:
         # check for sell signal (price crosses upper bband and rsi > 70)
         if lastprice >= upper_bband:
             # caclulate the rsi
-            rsi = self.find_rsi(arr_close, self.rsi_len)
-            self.evt.consoleLog(f"rsi: {rsi}")
+            rsi = talib.RSI(arr_close, timeperiod = self.rsi_len)
+            self.evt.consoleLog(f"rsi: {rsi[-1]}")
             # check for rsi
-            if rsi > 60:
+            if rsi[-1] > 70:
                 self.test_sendOrder(lastprice, -1, 'open', self.find_positionSize(lastprice, is_sequeeze))
                 self.evt.consoleLog(f"SELL SELL SELL SELL")
                 
         # check for buy signal (price crosses lower bband and rsi < 30)
         if lastprice <= lower_bband:
             # caclulate the rsi
-            rsi = self.find_rsi(arr_close, self.rsi_len)
+            rsi = talib.RSI(arr_close, timeperiod = self.rsi_len)
             self.evt.consoleLog(f"rsi: {rsi}")
             # check for rsi
-            if rsi < 30:
+            if rsi[-1] < 30:
                 self.test_sendOrder(lastprice, 1, "open", self.find_positionSize(lastprice, is_sequeeze))
                 self.evt.consoleLog(f"BUY BUY BUY BUY")
                 
@@ -128,22 +133,7 @@ class AlgoEvent:
         if len(arr_bbw) < self.bbw_len:
             return False
         return arr_bbw[-1] == arr_bbw.min()
-    
-    
-    def find_rsi(self, arr_close, window_size):
-        # we use previous day's close price as today's open price, which is not entirely accurate
-        deltas = numpy.diff(arr_close)
-        gains = deltas * (deltas > 0)
-        losses = -deltas * (deltas < 0)
-    
-        avg_gain = numpy.mean(gains[:window_size])
-        avg_loss = numpy.mean(losses[:window_size])
-    
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-    
-        return rsi
-        
+
         
     def test_sendOrder(self, lastprice, buysell, openclose, volume = 10):
         order = AlgoAPIUtil.OrderObject()
@@ -165,20 +155,18 @@ class AlgoEvent:
     def find_positionSize(self, lastprice, is_sequeeze):
         res = self.evt.getAccountBalance()
         availableBalance = res["availableBalance"]
-        ratio = 0.3
+        ratio = self.allocationratio_per_trade
         volume = (availableBalance*ratio) / lastprice
-        total =  availableBalance*ratio
-        while total < 0.3 * availableBalance:
+        total =  volume *  lastprice
+        while total < self.allocationratio_per_trade * availableBalance:
             ratio *= 1.05
             volume = (availableBalance*ratio) / lastprice
-            total = availableBalance*ratio
+            total =  volume *  lastprice
         while total > availableBalance:
             ratio *= 0.95
             volume = (availableBalance*ratio) / lastprice
-            total = availableBalance*ratio
-        if is_sequeeze:
-            volume *= 5
-        return volume*1000
+            total =  volume *  lastprice
+        return volume
     
 
 
